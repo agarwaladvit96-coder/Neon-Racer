@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NEON RACER - 3D WebGL Synthwave Drive</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="index.css">
+</head>
+<body>
+  <!-- WebGL Canvas Container -->
+  <div id="canvas-container"></div>
+
+  <!-- Scanline CRT Effect Overlay -->
+  <div class="crt-overlay"></div>
+
+  <!-- Cockpit View Overlay HUD -->
+  <div id="cockpit-overlay" class="cockpit-overlay hidden">
+    <div class="cockpit-hud-left">
+      <div class="cockpit-grid-scan"></div>
+      <div class="hud-label">DRIFT G</div>
+      <div id="cockpit-gforce" class="hud-mini-value">0.00 G</div>
+    </div>
+    <div class="cockpit-hud-center">
+      <div class="cockpit-windshield-rim"></div>
+      <div class="cockpit-digital-gauge">
+        <span class="warning-led">AUTOPILOT RUNNING</span>
+        <span class="system-status">GEAR SYNCED</span>
+      </div>
+    </div>
+    <div class="cockpit-hud-right">
+      <div class="hud-label">SYS GEAR</div>
+      <div id="cockpit-gear" class="hud-mini-value">1</div>
+    </div>
+  </div>
+
+  <!-- Start Menu Overlay -->
+  <div id="start-menu" class="overlay active">
+    <div class="menu-content">
+      <h1 class="game-title" data-text="NEON RACER">NEON RACER</h1>
+      <p class="tagline">ACCELERATE INTO THE RETRO GRID</p>
+
+      <div class="instructions">
+        <h3>CONTROLS</h3>
+        <div class="keys-guide">
+          <div class="key-item"><span class="key">A</span> / <span class="key">&larr;</span> Left</div>
+          <div class="key-item"><span class="key">D</span> / <span class="key">&rarr;</span> Right</div>
+          <div class="key-item"><span class="key">W</span> / <span class="key">&uarr;</span> Boost</div>
+          <div class="key-item"><span class="key">S</span> / <span class="key">&darr;</span> Brake</div>
+          <div class="key-item"><span class="key">C</span> View</div>
+          <div class="key-item"><span class="key">P</span> Pause</div>
+        </div>
+        <p class="goal-text">Collect <span class="highlight">Energy Shards</span> (+Score & Speed) and dodge <span class="danger">Barricades</span>!</p>
+      </div>
+
+      <div class="theme-selection">
+        <h3>SELECT PALETTE</h3>
+        <div class="palette-options">
+          <button class="palette-btn active" data-palette="cyberpunk" onclick="selectTheme('cyberpunk', this)" style="background: linear-gradient(135deg, #ff007f, #00f0ff);">CYBERPUNK</button>
+          <button class="palette-btn" data-palette="vaporwave" onclick="selectTheme('vaporwave', this)" style="background: linear-gradient(135deg, #f72585, #7209b7);">VAPORWAVE</button>
+          <button class="palette-btn" data-palette="matrix" onclick="selectTheme('matrix', this)" style="background: linear-gradient(135deg, #00ff41, #001100);">NEO-MATRIX</button>
+        </div>
+        <div class="palette-options" style="margin-top: 8px;">
+          <button class="palette-btn" data-palette="solar-flare" onclick="selectTheme('solar-flare', this)" style="background: linear-gradient(135deg, #ff5722, #ffc107);">SOLAR FLARE</button>
+          <button class="palette-btn" data-palette="deep-ocean" onclick="selectTheme('deep-ocean', this)" style="background: linear-gradient(135deg, #00f5d4, #00bbf9);">DEEP OCEAN</button>
+          <button class="palette-btn" data-palette="outrun-tokyo" onclick="selectTheme('outrun-tokyo', this)" style="background: linear-gradient(135deg, #ff0055, #7a00ff);">OUTRUN TOKYO</button>
+        </div>
+      </div>
+
+      <button id="start-btn" class="action-btn">INITIALIZE RUN</button>
+    </div>
+  </div>
+
+  <!-- HUD (Heads-Up Display) -->
+  <div id="hud" class="hud-container hidden">
+    <div class="hud-item stats-panel">
+      <div class="hud-label">SCORE</div>
+      <div id="hud-score" class="hud-value">00000</div>
+    </div>
+    
+    <div class="hud-item speed-panel">
+      <div class="hud-label">SPEED</div>
+      <div class="speed-value-container">
+        <span id="hud-speed" class="hud-value">0</span>
+        <span class="hud-unit">KM/H</span>
+      </div>
+      <div class="speed-bar-bg">
+        <div id="speed-fill" class="speed-bar-fill" style="width: 0%;"></div>
+      </div>
+    </div>
+
+    <div class="hud-item shield-panel">
+      <div class="hud-label">SHIELD ENERGY</div>
+      <div class="shield-bar-bg">
+        <div id="shield-fill" class="shield-bar-fill" style="width: 100%;"></div>
+      </div>
+      <div class="shield-percentage"><span id="shield-value">100</span>%</div>
+    </div>
+  </div>
+
+  <!-- Speed Lines / Boost Effect Vignette -->
+  <div id="boost-overlay" class="vignette-overlay hidden"></div>
+
+  <!-- Red Flash Damage Vignette -->
+  <div id="damage-overlay" class="damage-overlay-vignette hidden"></div>
+
+  <!-- Game Over Menu Overlay -->
+  <div id="game-over-menu" class="overlay hidden">
+    <div class="menu-content">
+      <h2 class="game-over-title">RUN TERMINATED</h2>
+      
+      <div class="final-stats">
+        <div class="stat-row">
+          <span>FINAL SCORE:</span>
+          <span id="final-score" class="highlight">0</span>
+        </div>
+        <div class="stat-row">
+          <span>MAX SPEED:</span>
+          <span id="final-speed" class="highlight">0 KM/H</span>
+        </div>
+        <div class="stat-row">
+          <span>SHARDS COLLECTED:</span>
+          <span id="final-shards" class="highlight">0</span>
+        </div>
+      </div>
+
+      <div class="theme-selection" style="margin-bottom: 25px;">
+        <h3>SELECT PALETTE FOR NEXT RUN</h3>
+        <div class="palette-options">
+          <button class="palette-btn active" data-palette="cyberpunk" onclick="selectTheme('cyberpunk', this)" style="background: linear-gradient(135deg, #ff007f, #00f0ff);">CYBERPUNK</button>
+          <button class="palette-btn" data-palette="vaporwave" onclick="selectTheme('vaporwave', this)" style="background: linear-gradient(135deg, #f72585, #7209b7);">VAPORWAVE</button>
+          <button class="palette-btn" data-palette="matrix" onclick="selectTheme('matrix', this)" style="background: linear-gradient(135deg, #00ff41, #001100);">NEO-MATRIX</button>
+        </div>
+        <div class="palette-options" style="margin-top: 8px;">
+          <button class="palette-btn" data-palette="solar-flare" onclick="selectTheme('solar-flare', this)" style="background: linear-gradient(135deg, #ff5722, #ffc107);">SOLAR FLARE</button>
+          <button class="palette-btn" data-palette="deep-ocean" onclick="selectTheme('deep-ocean', this)" style="background: linear-gradient(135deg, #00f5d4, #00bbf9);">DEEP OCEAN</button>
+          <button class="palette-btn" data-palette="outrun-tokyo" onclick="selectTheme('outrun-tokyo', this)" style="background: linear-gradient(135deg, #ff0055, #7a00ff);">OUTRUN TOKYO</button>
+        </div>
+      </div>
+
+      <button id="restart-btn" class="action-btn">RE-INITIALIZE</button>
+    </div>
+  </div>
+
+  <!-- Pause Menu Overlay -->
+  <div id="pause-menu" class="overlay hidden">
+    <div class="menu-content">
+      <h2 class="game-title" data-text="RUN PAUSED" style="font-size: 2.2rem; text-shadow: 0 0 10px var(--color-primary);">RUN PAUSED</h2>
+      <p class="tagline">GRID ENGINE SUSPENDED</p>
+      
+      <div class="instructions" style="margin-bottom: 25px;">
+        <p>Press <span class="key">P</span> or <span class="key">ESC</span> to resume</p>
+      </div>
+
+      <button id="resume-btn" class="action-btn">RESUME RUN</button>
+    </div>
+  </div>
+
+  <!-- Camera View Control -->
+  <button id="view-toggle" class="camera-control-btn" title="Toggle Camera View">
+    <svg viewBox="0 0 24 24" width="22" height="22">
+      <path d="M9 12c0 1.66 1.34 3 3 3s3-1.34 3-3-1.34-3-3-3-3 1.34-3 3zm12-8.5h-3.17L16 1.5H8L6.17 3.5H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2v-12c0-1.1-.9-2-2-2zm-9 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z" fill="currentColor"/>
+    </svg>
+  </button>
+
+  <!-- Audio Mute Control -->
+  <button id="audio-toggle" class="audio-control-btn" title="Toggle Sound">
+    <svg id="sound-icon-on" viewBox="0 0 24 24" width="24" height="24">
+      <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" fill="currentColor"/>
+    </svg>
+    <svg id="sound-icon-off" viewBox="0 0 24 24" width="24" height="24" class="hidden">
+      <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.21.05-.42.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z" fill="currentColor"/>
+    </svg>
+  </button>
+
+  <!-- CDNs for Three.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
